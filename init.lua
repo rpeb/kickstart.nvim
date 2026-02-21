@@ -90,8 +90,12 @@ P.S. You can delete this when you're done too. It's your config now! :)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Disable startup.nvim dashboard on launch to avoid "Cursor position outside buffer"
+-- race condition (deferred nvim_win_set_cursor can run after buffer/window changes)
+vim.g.startup_disable_on_startup = true
+
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -102,7 +106,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -198,19 +202,18 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- TIP: Disable arrow keys in normal mode
--- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
+vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
+vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
+vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+
+vim.keymap.set('i', '<right>', '<Nop>', { desc = 'Disable right arrow in insert mode' })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
 --
 --  See `:help wincmd` for a list of all window commands
-vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
-vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+-- C-h/j/k/l for split navigation (smart-splits.nvim, multiplexer-aware)
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -220,6 +223,16 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
+
+-- Disable listchars (>> at indentations) for Java files
+-- Uses FileType only; list is window-local (vim.wo)
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'java',
+  callback = function()
+    vim.wo.list = false
+  end,
+  group = vim.api.nvim_create_augroup('java-no-listchars', { clear = true }),
+})
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
@@ -261,6 +274,7 @@ require('lazy').setup({
   -- Alternatively, use `config = function() ... end` for full control over the configuration.
   -- If you prefer to call `setup` explicitly, use:
   --    {
+  --    xyz
   --        'lewis6991/gitsigns.nvim',
   --        config = function()
   --            require('gitsigns').setup({
@@ -272,19 +286,7 @@ require('lazy').setup({
   -- Here is a more advanced example where we pass configuration
   -- options to `gitsigns.nvim`.
   --
-  -- See `:help gitsigns` to understand what the configuration keys do
-  { -- Adds git related signs to the gutter, as well as utilities for managing changes
-    'lewis6991/gitsigns.nvim',
-    opts = {
-      signs = {
-        add = { text = '+' },
-        change = { text = '~' },
-        delete = { text = '_' },
-        topdelete = { text = '‾' },
-        changedelete = { text = '~' },
-      },
-    },
-  },
+  -- See `:help gitsigns` - full config in lua/custom/plugins/gitsigns.lua
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
@@ -312,7 +314,16 @@ require('lazy').setup({
       spec = {
         { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
+        { '<leader>u', group = '[U]I' },
+        { '<leader>g', group = '[G]it diffview' },
+        { '<leader>x', group = '[T]rouble' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>a', group = '[A]erial' },
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>o', group = '[O]bsidian' },
+        { '<leader>l', group = '[L]eetCode' },
+        { '<leader>R', group = '[R]est/Kulala' },
+        { '<leader>r', group = '[R]un tasks' },
       },
     },
   },
@@ -439,7 +450,7 @@ require('lazy').setup({
 
           -- Jump to the type of the word under your cursor.
           -- Useful when you're not sure what type a variable is and you want to see
-          -- the definition of its *type*, not where it was *defined*.
+          -- the djfinition of its *type*, not where it was *defined*.
           vim.keymap.set('n', 'grt', builtin.lsp_type_definitions, { buffer = buf, desc = '[G]oto [T]ype Definition' })
         end,
       })
@@ -558,7 +569,8 @@ require('lazy').setup({
               callback = vim.lsp.buf.document_highlight,
             })
 
-            vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+            -- BufLeave instead of CursorMoved to avoid flickering when navigating
+            vim.api.nvim_create_autocmd('BufLeave', {
               buffer = event.buf,
               group = highlight_augroup,
               callback = vim.lsp.buf.clear_references,
@@ -593,11 +605,13 @@ require('lazy').setup({
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --  See `:help lsp-config` for information about keys and how to configure
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
         -- pyright = {},
         -- rust_analyzer = {},
-        --
+        -- jdtls configured in lua/custom/plugins/java.lua
+        emmylua_ls = {},
+
         -- Some languages (like typescript) have entire language plugins that can be useful:
         --    https://github.com/pmizio/typescript-tools.nvim
         --
@@ -605,21 +619,10 @@ require('lazy').setup({
         -- ts_ls = {},
       }
 
-      -- Ensure the servers and tools above are installed
-      --
-      -- To check the current status of installed tools and/or manually install
-      -- other tools, you can run
-      --    :Mason
-      --
-      -- You can press `g?` for help in this menu.
-      local ensure_installed = vim.tbl_keys(servers or {})
-      vim.list_extend(ensure_installed, {
-        'lua_ls', -- Lua Language server
-        'stylua', -- Used to format Lua code
-        -- You can add other tools here that you want Mason to install
-      })
-
-      require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+      -- Mason tools: install manually via :Mason (no auto-install)
+      -- List your wanted tools below for reference; install them with :Mason
+      -- e.g. lua-language-server, stylua, clangd, jdtls, etc.
+      require('mason-tool-installer').setup { ensure_installed = { 'google-java-format' } }
 
       for name, server in pairs(servers) do
         server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
@@ -628,7 +631,7 @@ require('lazy').setup({
       end
 
       -- Special Lua Config, as recommended by neovim help docs
-      vim.lsp.config('lua_ls', {
+      vim.lsp.config('emmylua_ls', {
         on_init = function(client)
           if client.workspace_folders then
             local path = client.workspace_folders[1].name
@@ -652,7 +655,7 @@ require('lazy').setup({
           Lua = {},
         },
       })
-      vim.lsp.enable 'lua_ls'
+      vim.lsp.enable 'emmylua_ls'
     end,
   },
 
@@ -679,17 +682,15 @@ require('lazy').setup({
           return nil
         else
           return {
-            timeout_ms = 500,
+            timeout_ms = 1000,
             lsp_format = 'fallback',
           }
         end
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
+        java = { 'google-java-format' },
         -- python = { "isort", "black" },
-        --
-        -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
       },
     },
@@ -700,6 +701,12 @@ require('lazy').setup({
     event = 'VimEnter',
     version = '1.*',
     dependencies = {
+      {
+        'xzbdmw/colorful-menu.nvim',
+        config = function()
+          require('colorful-menu').setup {}
+        end,
+      },
       -- Snippet Engine
       {
         'L3MON4D3/LuaSnip',
@@ -766,6 +773,21 @@ require('lazy').setup({
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
         documentation = { auto_show = false, auto_show_delay_ms = 500 },
+        menu = {
+          draw = {
+            columns = { { 'kind_icon' }, { 'label', gap = 1 } },
+            components = {
+              label = {
+                text = function(ctx)
+                  return require('colorful-menu').blink_components_text(ctx)
+                end,
+                highlight = function(ctx)
+                  return require('colorful-menu').blink_components_highlight(ctx)
+                end,
+              },
+            },
+          },
+        },
       },
 
       sources = {
@@ -793,20 +815,27 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
-    priority = 1000, -- Make sure to load this before all the other start plugins.
+    'catppuccin/nvim',
+    name = 'catppuccin',
+    priority = 1000,
     config = function()
-      ---@diagnostic disable-next-line: missing-fields
-      require('tokyonight').setup {
-        styles = {
-          comments = { italic = false }, -- Disable italics in comments
+      require('catppuccin').setup {
+        flavour = 'mocha',
+        no_italic = true,
+        integrations = {
+          blink_cmp = true,
+          gitsigns = true,
+          mason = true,
+          mini = { enabled = true },
+          native_lsp = { enabled = true },
+          neo_tree = true,
+          telescope = { enabled = true },
+          treesitter = true,
+          which_key = true,
         },
       }
 
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'catppuccin'
     end,
   },
 
@@ -852,7 +881,7 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'java' }
       require('nvim-treesitter').install(filetypes)
       vim.api.nvim_create_autocmd('FileType', {
         pattern = filetypes,
@@ -870,24 +899,20 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
-
-  -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
+  -- NOTE: The import below loads plugins from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
   -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
   -- you can continue same window with `<space>sr` which resumes last telescope search
 }, {
+  -- No auto-updates: plugins only change when you run :Lazy update
+  checker = { enabled = false },
+  install = { missing = false },
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
     -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
